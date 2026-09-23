@@ -1,0 +1,753 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>POIL: Point-based One-Shot Imitation Learning with Stable Dynamical Systems</title>
+  <meta name="description" content="POIL transfers a manipulation skill from a single demonstration across object category, grasp pose and goal geometry, and executes it in closed loop with an almost-global convergence guarantee — all on one representation: 3D points on the object's functional part.">
+
+  <meta property="og:type" content="website">
+  <meta property="og:title" content="POIL: Point-based One-Shot Imitation Learning with Stable Dynamical Systems">
+  <meta property="og:description" content="A set of 3D points on the object's functional part is both the transfer representation and the controller state.">
+  <meta property="og:image" content="static/images/fig1_overview.jpg">
+  <meta name="twitter:card" content="summary_large_image">
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&family=Quicksand:wght@400;500;600;700&family=Roboto+Mono:wght@400&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bulma@1.0.1/css/bulma.min.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/jpswalsh/academicons@1/css/academicons.min.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.css">
+  <link rel="stylesheet" href="./static/css/index.css?v=28">
+  <script defer src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.js"></script>
+  <script defer src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/contrib/auto-render.min.js"></script>
+</head>
+<body>
+
+<!-- ============================ TITLE / AUTHORS ============================ -->
+<section class="section paper-head" id="paper">
+  <div class="container is-max-desktop has-text-centered">
+    <h1 class="title publication-title">POIL: Point-based One-Shot Imitation Learning<br>with Stable Dynamical Systems</h1>
+    <p class="publication-venue">Preprint &nbsp;·&nbsp; 2026</p>
+
+    <div class="publication-authors">
+      <span class="author-block"><a href="https://sangminkim-99.github.io/">Sang Min Kim</a><sup>1</sup>,</span>
+      <span class="author-block"><a href="https://www.linkedin.com/in/jinwoo-seo-2b10733a3/">Jinwoo Seo</a><sup>1</sup>,</span>
+      <span class="author-block"><a href="https://heo0224.github.io/">Hyeongjun Heo</a><sup>1</sup>,</span>
+      <span class="author-block"><a href="https://twjhlee.github.io/">Junho Lee</a><sup>1</sup>,</span>
+      <span class="author-block"><a href="https://rophi-lab.github.io/">Yonghyeon Lee</a><sup>2,*</sup>,</span>
+      <span class="author-block"><a href="https://3d.snu.ac.kr/">Young Min Kim</a><sup>1,*</sup></span>
+    </div>
+
+    <div class="publication-institutes">
+      <span class="inst-block"><sup>1</sup>Seoul National University</span>
+      <span class="inst-block"><sup>2</sup>Yonsei University</span>
+    </div>
+    <div class="publication-notes">
+      <span><sup>*</sup>Co-corresponding authors</span>
+    </div>
+
+    <div class="affiliation-logos">
+      <a href="https://3d.snu.ac.kr" target="_blank" rel="noopener" class="logo-slot">
+        <img src="./static/images/3dv.png" alt="Seoul National University 3D Vision Lab" class="logo-snu">
+      </a>
+      <a href="https://rophi-lab.github.io/" target="_blank" rel="noopener" class="logo-slot">
+        <img src="./static/images/yonsei_emblem.svg" alt="" aria-hidden="true" class="logo-yonsei-emblem">
+        <img src="./static/images/rophi.svg" alt="Yonsei University RoPhi Lab" class="logo-rophi">
+      </a>
+    </div>
+
+    <div class="link-blocks">
+      <a class="button link-button is-rounded is-disabled" href="#" aria-disabled="true" title="Coming soon">
+        <span class="icon"><i class="ai ai-arxiv"></i></span><span>arXiv (Soon)</span>
+      </a>
+      <a class="button link-button is-rounded is-disabled" href="#" aria-disabled="true" title="Coming soon">
+        <span class="icon"><i class="fa-brands fa-github"></i></span><span>Code (Soon)</span>
+      </a>
+    </div>
+  </div>
+</section>
+
+<!-- ============================ TEASER ============================ -->
+<section class="section" id="overview">
+  <div class="container is-max-desktop">
+    <div class="teaser-row">
+      <figure>
+        <video class="teaser-video" muted loop playsinline preload="none" poster="./static/videos/demo_sim_mug.jpg"
+               data-src="./static/videos/demo_sim_mug.mp4"
+               aria-label="Demonstration in simulation: a mug is hung on a rack."></video>
+        <figcaption>Demonstration</figcaption>
+      </figure>
+      <figure>
+        <video class="teaser-video" muted loop playsinline preload="none" poster="./static/videos/teaser_trajectory.jpg"
+               data-src="./static/videos/teaser_trajectory.mp4"
+               aria-label="The transferred trajectory: ten functional-part points, each with its own path to the goal."></video>
+        <figcaption>Part point trajectories</figcaption>
+      </figure>
+      <figure>
+        <video class="teaser-video" muted loop playsinline preload="none" poster="./static/videos/rw_disturbance.jpg"
+               data-src="./static/videos/rw_disturbance.mp4"
+               aria-label="Execution on the real robot while a human pulls the gripper and rotates the mug inside the grasp."></video>
+        <span class="rate-badge">2&times;</span>
+        <figcaption>Target scene</figcaption>
+      </figure>
+    </div>
+    <p class="teaser-caption">
+      One demonstration in simulation, transferred to a real mug and executed in closed loop. A human pulls the gripper and rotates the mug
+      inside the grasp, and the handle still reaches the demonstrated goal. Transfer and execution share one representation: a set of 3D points
+      on the object's functional part.
+    </p>
+  </div>
+</section>
+
+<!-- ============================ ABSTRACT ============================ -->
+<section class="section is-feature" id="abstract">
+  <div class="container is-max-desktop">
+    <h2 class="section-title">Abstract</h2>
+    <div class="content has-text-justified abstract-text">
+      <p>We present POIL, a point-based one-shot imitation learning framework with stable dynamical systems.
+      While one-shot imitation avoids collecting extensive demonstrations, successful one-shot manipulation requires not only
+      transferring a demonstrated trajectory to a novel object but also executing it robustly under changing scene conditions,
+      grasp configurations, and external disturbances. POIL addresses both problems through a shared representation: a set of 3D points
+      on the object's functional part, used jointly for trajectory transfer and closed-loop execution.
+      The one-shot transfer from the demonstrated trajectory is enabled with point correspondences. POIL grounds the shared functional part
+      with a multi-modal large language model, and transfers the trajectory across viewpoint, pose, and object category changes.
+      During execution, multi-view tracking observes the same points online, and Point-set BCSDM drives them in closed loop by projecting
+      per-point velocities onto a single rigid-body twist computed from the tracked points alone. This extends stable dynamical models from
+      an SE(3) pose to a point set without requiring a known 3D model or pose estimator. We show that at the goal the controller becomes a
+      gradient flow on the classical SO(3) potential, so its terminal phase inherits the almost-global convergence of that potential under a
+      rigid-object assumption. Across simulation and real-robot experiments, POIL transfers a single demonstration across object category,
+      grasp pose, and goal geometry, while recovering from external disturbances during execution.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ============================ MOTIVATION ============================ -->
+<section class="section" id="motivation">
+  <div class="container is-max-desktop">
+    <h2 class="section-title">Trajectory transfer and stable dynamical systems</h2>
+    <p class="section-lead">
+      <strong>Trajectory transfer</strong> <span class="ref">[7]&ndash;[10]</span> carries one demonstration to a novel object by
+      establishing correspondences to the target scene, then replays the transferred motion open loop. Closing the loop corrects deviations, but on its own gives no assurance of actually
+      reaching the goal from states far outside the demonstration. <strong>Stable dynamical systems</strong> <span class="ref">[11]&ndash;[13]</span> do: a
+      time-independent velocity field whose solutions converge from any initial state. They assume, however, that the state representation and the reference trajectory
+      are already given, and that the state is a single rigid-body <span class="katex-inline">SE(3)</span> pose &mdash; the object, which needs
+      a known 3D model and runtime pose estimation, or the gripper, assuming the object is held in a fixed grasp.
+      The two are complementary; their integration is largely unexplored.
+    </p>
+
+    <div class="poil-table-wrap">
+      <table class="poil-table">
+        <caption>Table&nbsp;I &mdash; One-shot imitation learning approaches, compared along four axes</caption>
+        <thead>
+          <tr>
+            <th>Approach</th>
+            <th>No action<br>pretraining</th>
+            <th>Object<br>generalization</th>
+            <th>Closed<br>loop</th>
+            <th>Convergence<br>guarantee</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Meta / in-context <span class="ref">[4], [6]</span></td>
+            <td class="mark-no">&#10007;</td><td>in-dist.</td>
+            <td class="mark-yes">&#10003;</td><td class="mark-no">&#10007;</td>
+          </tr>
+          <tr>
+            <td>Correspondence <span class="ref">[9], [10]</span></td>
+            <td class="mark-yes">&#10003;</td><td>func. part<sup>&Dagger;</sup></td>
+            <td class="mark-no">&#10007;</td><td class="mark-no">&#10007;</td>
+          </tr>
+          <tr>
+            <td>Alignment <span class="ref">[7], [8]</span></td>
+            <td class="mark-yes">&#10003;</td><td>intra-cat.</td>
+            <td class="mark-yes">&#10003;<sup>&dagger;</sup></td><td class="mark-no">&#10007;</td>
+          </tr>
+          <tr>
+            <td>Analytical stable dynamical systems <span class="ref">[11], [12]</span></td>
+            <td class="mark-yes">&#10003;</td><td class="mark-no">&#10007;</td>
+            <td class="mark-yes">&#10003;</td><td class="mark-yes">&#10003;</td>
+          </tr>
+          <tr class="is-ours">
+            <td>POIL (ours)</td>
+            <td class="mark-yes">&#10003;</td><td>func. part<sup>&Dagger;</sup></td>
+            <td class="mark-yes">&#10003;</td><td class="mark-yes">&#10003;</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="table-note"><sup>&dagger;</sup>Closed-loop alignment to an intermediate pose, then open-loop replay. &nbsp;
+      <sup>&Dagger;</sup>Requires geometrically similar parts. &nbsp; Reference numbers are the paper's.</p>
+
+    <p>They do not compose because they disagree about the state. <strong>Gripper pose</strong> is not object-centric &mdash; change the
+    grasp and the same trajectory moves the object differently. <strong>Object pose</strong> is, but needs a 3D model and a runtime estimator.
+    POIL takes the state to be 3D points on the functional part: semantics place them, a multi-view tracker observes them, and they define a
+    potential that provably descends to the goal.</p>
+  </div>
+</section>
+
+<!-- ============================ METHOD ============================ -->
+<section class="section is-feature" id="method">
+  <div class="container is-max-desktop">
+    <h2 class="section-title">How it works</h2>
+    <p class="section-lead">Transfer offline, execute online &mdash; on the same points.</p>
+
+    <figure class="fig">
+      <video class="lazy-video" muted loop playsinline controls preload="none" poster="./static/videos/method_walkthrough.jpg"
+             data-src="./static/videos/method_walkthrough.mp4"
+             aria-label="Walkthrough: open-vocabulary part grounding, functional-part point transfer, and closed-loop execution on the real robot."></video>
+      <figcaption class="fig-caption has-text-centered">
+        The whole pipeline on one example: grounding the part by name, transferring the points to the target, and closing the loop on them.
+      </figcaption>
+    </figure>
+
+  </div>
+</section>
+
+<!-- ============================ INTERACTIVE DEMO ============================ -->
+<section class="section" id="stability">
+  <div class="container is-max-desktop">
+    <h2 class="section-title">Interactive: Point-set BCSDM</h2>
+    <p class="section-lead">
+      An interactive visualization of Point-set BCSDM. The eight corners of a rigid box are the tracked points; each contracts toward its
+      target, and the per-point velocities are projected onto a single rigid-body twist. Three runs play at once, from different starting
+      rotations: a random one, one half a degree off a <span class="katex-inline">\pi</span>-rotation about a principal axis of
+      <span class="katex-inline">W</span>, and one exactly on it.
+    </p>
+
+    <div class="demo-shell" id="stability-demo">
+      <div class="demo-canvases">
+        <div class="demo-pane">
+          <h4>Point set</h4>
+          <canvas id="demo-box"></canvas>
+          <p class="hint">Solid: the point set now; dashed: the goal <span class="katex-inline">R = I</span>; arrows: the per-point
+            contraction velocity. Drag to orbit.</p>
+        </div>
+        <div class="demo-pane">
+          <h4>Rotation space</h4>
+          <canvas id="demo-ball"></canvas>
+          <p class="hint">Ball model of <span class="katex-inline">SO(3)</span>: radius <span class="katex-inline">\text{angle}/\pi</span>
+            along the rotation axis. Centre is the goal; on the surface <span class="katex-inline">\pm e_k</span> are the same rotation, so the
+            six red marks are <strong>three</strong> critical points.</p>
+        </div>
+      </div>
+
+      <div class="demo-plot">
+        <canvas id="demo-plot"></canvas>
+      </div>
+
+      <div class="demo-legend">
+        <span><i style="background:#143163"></i> Random start &mdash; converges</span>
+        <span><i style="background:#d9822b" class="dashed"></i> 0.5&deg; off a saddle &mdash; rolls home</span>
+        <span><i style="background:#b3261e"></i> Exactly on it &mdash; never converges</span>
+      </div>
+
+      <div class="demo-readout" id="demo-readout"></div>
+
+      <div class="demo-controls">
+        <button class="demo-btn" id="demo-new">New random start</button>
+        <button class="demo-btn secondary" id="demo-replay">Replay</button>
+        <button class="demo-btn secondary" id="demo-nudge">Kick the stuck one</button>
+        <button class="demo-btn secondary" id="demo-pause">Pause</button>
+        <span class="demo-slider">
+          <label for="demo-axis">saddle axis</label>
+          <select id="demo-axis">
+            <option value="0">x</option>
+            <option value="1">y</option>
+            <option value="2">z</option>
+          </select>
+        </span>
+      </div>
+
+    </div>
+
+    <p class="table-note">
+      The red run is the word <em>almost</em>: a genuine equilibrium, but a saddle, so half a degree off it already rolls home.
+      The set that never converges has measure zero.
+    </p>
+  </div>
+</section>
+
+<!-- ============================ EXPERIMENTS ============================ -->
+<section class="section is-feature" id="transfer">
+  <div class="container is-max-desktop">
+    <h2 class="section-title">Functional-part point transfer</h2>
+    <p class="section-lead">
+      Mugs, pans and scissors from 12 viewpoints 30&deg; apart; one view is the demonstration, the target view sweeps away from it.
+      Baselines lift dense DINOv2 and DIFT correspondences to 3D, from a single view or aggregated across two views (MV).
+    </p>
+    <h3 class="sub-title">Multi-view prompting</h3>
+    <p>Asked for a handle one view at a time, the detector returns a box in every image whether or not the handle is there &mdash; a mug rim, the
+    wrong side. Querying all views as one input lets it settle on the candidate that is consistent across them.</p>
+    <figure class="fig narrow">
+      <div class="panel-labels cols-2 above">
+        <span>Per-view prompting</span><span>Multi-view prompting</span>
+      </div>
+      <img src="./static/images/fig2_mvprompt.jpg"
+           alt="Per-view prompting boxes any handle-like shape in each image; prompting on the joint input resolves the true handle."
+           loading="lazy">
+      <figcaption class="fig-caption has-text-centered">
+        The same two views, queried one at a time on the left and together on the right. Red boxes are what the detector returned.
+      </figcaption>
+    </figure>
+
+    <h3 class="sub-title">Accuracy under viewpoint change</h3>
+    <figure class="fig chart chart-wide">
+      <img src="./static/images/fig4_transfer_plots.jpg" alt="Normalized point error versus angular distance, and accuracy versus distance threshold, comparing POIL to DINOv2 and DIFT baselines." loading="lazy">
+      <figcaption class="fig-caption has-text-centered">
+        Lowest point error at every angular offset, highest correct-point fraction at every threshold. The gap widens with angular distance:
+        visual features degrade as the object turns away, a part's name does not. <em>Ours w/o MVP</em> queries each view separately.
+      </figcaption>
+    </figure>
+  </div>
+</section>
+
+<section class="section" id="control">
+  <div class="container is-max-desktop">
+    <h2 class="section-title">Control under pose variation</h2>
+    <p class="section-lead">
+      Every policy gets ground-truth point trajectories and actuates the object directly, isolating control. Initial poses use the full yaw
+      range; <strong>Near</strong> is the box around the demonstration start that the 50-demo Point Policy was trained on, <strong>Far</strong>
+      is sampled outside it.
+    </p>
+
+    <figure class="fig">
+      <img src="./static/images/fig5_tasks.jpg"
+           alt="Demonstration sequences for the four control tasks, with object motion rendered blue to red."
+           loading="lazy">
+      <div class="panel-labels cols-4">
+        <span>PnP Cube</span><span>Reshelving</span><span>Mug Insertion</span><span>Hanging Bag</span>
+      </div>
+      <figcaption class="fig-caption has-text-centered">
+        The four tasks, object motion rendered blue&rarr;red. <em>PnP Cube</em> is a single rigid translation; <em>Reshelving</em> must pull a
+        book out along one direction; <em>Mug Insertion</em> must follow the demonstrated trajectory rather than shortcut to the goal pose;
+        <em>Hanging Bag</em> is slightly deformable.
+      </figcaption>
+    </figure>
+
+    <div class="poil-table-wrap">
+      <table class="poil-table">
+        <caption>Table&nbsp;II &mdash; Control robustness under varying initial poses</caption>
+        <thead>
+          <tr>
+            <th rowspan="2">Policy</th>
+            <th rowspan="2">#Demos</th>
+            <th colspan="2" class="col-sep">PnP Cube</th>
+            <th colspan="2" class="col-sep">Mug Insertion</th>
+            <th colspan="2" class="col-sep">Reshelving</th>
+            <th colspan="2" class="col-sep">Hanging Bag</th>
+          </tr>
+          <tr>
+            <th class="col-sep">Near</th><th>Far</th>
+            <th class="col-sep">Near</th><th>Far</th>
+            <th class="col-sep">Near</th><th>Far</th>
+            <th class="col-sep">Near</th><th>Far</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Point Policy</td><td>1</td>
+            <td class="col-sep">100</td><td>54</td>
+            <td class="col-sep">33</td><td>25</td>
+            <td class="col-sep">71</td><td>31</td>
+            <td class="col-sep">51</td><td>45</td>
+          </tr>
+          <tr>
+            <td>Point Policy</td><td>50</td>
+            <td class="col-sep">100</td><td>100</td>
+            <td class="col-sep">100</td><td>84</td>
+            <td class="col-sep">100</td><td>57</td>
+            <td class="col-sep">100</td><td>100</td>
+          </tr>
+          <tr>
+            <td>Instant Policy</td><td>1</td>
+            <td class="col-sep">100</td><td>100</td>
+            <td class="col-sep">0</td><td>0</td>
+            <td class="col-sep">4</td><td>3</td>
+            <td class="col-sep">23</td><td>19</td>
+          </tr>
+          <tr class="is-ours">
+            <td>POIL (Point-set BCSDM)</td><td>1</td>
+            <td class="col-sep">100</td><td>100</td>
+            <td class="col-sep">100</td><td>100</td>
+            <td class="col-sep">100</td><td>100</td>
+            <td class="col-sep">100</td><td>100</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="table-note">Success rate (%) over 100 trials.</p>
+
+    <p>PnP Cube is a rigid translation and everything solves it. Instant Policy then collapses on the constrained tasks, which we attribute to
+    distribution shift &mdash; its motion prior is trained on scenes with near-linear trajectories &mdash; though which factor dominates was not
+    isolated. Point Policy has no timestep cue from one demonstration and drives toward the final pose out
+    of distribution; fifty demonstrations buy back Near and still leave Reshelving at 57 in Far. POIL holds 100% everywhere from one.</p>
+
+    <figure class="fig chart chart-wide">
+      <img src="./static/images/fig6_distance.jpg" alt="Success rate on Mug Insertion versus initial-pose distance from the training distribution: Point Policy with 50 demos degrades from 100% to 60%, POIL stays at 100%." loading="lazy">
+      <figcaption class="fig-caption has-text-centered">
+        Success on Mug Insertion against the initial pose's <em>xy</em> distance from the training region (20&nbsp;cm bins; shaded =
+        in-distribution).
+      </figcaption>
+    </figure>
+  </div>
+</section>
+
+<!-- ============================ END-TO-END ============================ -->
+<section class="section is-feature" id="end2end">
+  <div class="container is-max-desktop">
+    <h2 class="section-title">Full pipeline in simulation</h2>
+    <p class="section-lead">Nothing given: ground, transfer, select a grasp, track, control. 7-DoF Franka Panda in MuJoCo.</p>
+
+    <div class="rw-picker" id="e2e-picker">
+      <button class="rw-chip is-active" type="button" data-panel="e2e-pert"><span>Perturbation recovery</span></button>
+      <button class="rw-chip" type="button" data-panel="e2e-grasp"><span>Grasp invariance</span></button>
+    </div>
+
+    <div class="gt-panel gt-e2e-panel is-active" id="e2e-pert">
+      <div class="gt-pair">
+        <figure>
+          <video class="gt-video" muted loop playsinline preload="none" poster="./static/videos/pert_demo.jpg" data-src="./static/videos/pert_demo.mp4"
+                 aria-label="Demonstration: a teapot is lifted and tipped to pour into a mug."></video>
+          <figcaption>Demonstration</figcaption>
+        </figure>
+        <figure>
+          <video class="gt-video" muted loop playsinline preload="none" poster="./static/videos/pert_exec.jpg" data-src="./static/videos/pert_exec.mp4"
+                 aria-label="Execution: the teapot is displaced mid-pour and the controller brings it back to the pour configuration."></video>
+          <figcaption>Execution &mdash; displaced mid-pour</figcaption>
+        </figure>
+      </div>
+      <p class="rw-caption">The teapot is displaced mid-pour. The gripper ends at a different pose; the teapot does not &mdash; the controller
+      regulates object points, not the gripper.</p>
+    </div>
+
+    <div class="gt-panel gt-e2e-panel" id="e2e-grasp">
+      <div class="gt-pair">
+        <figure>
+          <video class="gt-video" muted loop playsinline preload="none" poster="./static/videos/grasp_demo.jpg" data-src="./static/videos/grasp_demo.mp4"
+                 aria-label="Demonstration: an upright mug is grasped by its rim and hung on the rod."></video>
+          <figcaption>Demonstration &mdash; rim grasp</figcaption>
+        </figure>
+        <figure>
+          <video class="gt-video" muted loop playsinline preload="none" poster="./static/videos/grasp_exec.jpg" data-src="./static/videos/grasp_exec.mp4"
+                 aria-label="Execution: on a side-lying mug the rim grasp is blocked, so a different grasp is taken and the handle still reaches the rod."></video>
+          <figcaption>Execution &mdash; side-lying, another grasp</figcaption>
+        </figure>
+      </div>
+      <p class="rw-caption">On a side-lying mug the demonstrated rim grasp is blocked by collision. POIL takes a different feasible grasp and still drives the handle to the rod.</p>
+    </div>
+
+
+    <h3 class="sub-title">Goal geometry changes</h3>
+    <p>The same demonstration, warped onto a goal it was not recorded on.</p>
+
+    <div class="rw-picker gt-picker" id="gt-picker">
+      <button class="rw-chip is-active" type="button" data-panel="gt-cube"><span>short box &rarr; tall box</span></button>
+      <button class="rw-chip" type="button" data-panel="gt-mug"><span>straight rod &rarr; L-hook</span></button>
+      <button class="rw-chip" type="button" data-panel="gt-plate"><span>vertical slot &rarr; tilted slot</span></button>
+    </div>
+
+    <div class="gt-panel gt-goal-panel is-active" id="gt-cube">
+      <div class="gt-pair">
+        <figure>
+          <video class="gt-video" muted loop playsinline preload="none" poster="./static/videos/goal_cube_demo.jpg" data-src="./static/videos/goal_cube_demo.mp4"
+                 aria-label="Demonstration: the cube is placed into a short box."></video>
+          <figcaption>Demonstration &mdash; short box</figcaption>
+        </figure>
+        <figure>
+          <video class="gt-video" muted loop playsinline preload="none" poster="./static/videos/goal_cube_target.jpg" data-src="./static/videos/goal_cube_target.mp4"
+                 aria-label="Execution: the cube is lifted higher to clear a taller box, then placed in."></video>
+          <figcaption>Execution &mdash; tall box</figcaption>
+        </figure>
+      </div>
+      <p class="rw-caption">The cube is lifted higher to clear the taller wall before it comes down into the box.</p>
+    </div>
+
+    <div class="gt-panel gt-goal-panel" id="gt-mug">
+      <div class="gt-pair">
+        <figure>
+          <video class="gt-video" muted loop playsinline preload="none" poster="./static/videos/goal_mug_demo.jpg" data-src="./static/videos/goal_mug_demo.mp4"
+                 aria-label="Demonstration: the mug is hung on a straight rod."></video>
+          <figcaption>Demonstration &mdash; straight rod</figcaption>
+        </figure>
+        <figure>
+          <video class="gt-video" muted loop playsinline preload="none" poster="./static/videos/goal_mug_target.jpg" data-src="./static/videos/goal_mug_target.mp4"
+                 aria-label="Execution: the mug is hung on an L-hook rod whose tip turns upward."></video>
+          <figcaption>Execution &mdash; L-hook rod</figcaption>
+        </figure>
+      </div>
+      <p class="rw-caption">The rod's tip now turns upward, so the handle has to come in over the hook rather than straight along the rod.</p>
+    </div>
+
+    <div class="gt-panel gt-goal-panel" id="gt-plate">
+      <div class="gt-pair">
+        <figure>
+          <video class="gt-video" muted loop playsinline preload="none" poster="./static/videos/goal_plate_demo.jpg" data-src="./static/videos/goal_plate_demo.mp4"
+                 aria-label="Demonstration: the plate is seated in a vertical rack slot."></video>
+          <figcaption>Demonstration &mdash; vertical slot</figcaption>
+        </figure>
+        <figure>
+          <video class="gt-video" muted loop playsinline preload="none" poster="./static/videos/goal_plate_target.jpg" data-src="./static/videos/goal_plate_target.mp4"
+                 aria-label="Execution: the plate is seated in a tilted rack slot that has also moved."></video>
+          <figcaption>Execution &mdash; tilted slot, moved</figcaption>
+        </figure>
+      </div>
+      <p class="rw-caption">The slot is both tilted and moved; the same warp handles the rotation and the spatial shift together.</p>
+    </div>
+
+    <p class="table-note">Rendered from the recorded runs; demonstration and execution are paced to the same length.</p>
+
+    <h3 class="sub-title">Where it fails</h3>
+    <p>Over 50 randomized yaw angles on the side-lying mug &mdash; the hardest setting &mdash; POIL completes 39. Of the 11 failures, 7 come from
+    part detection and 3 from finding no valid grasp after filtering; the remaining one is a mug&ndash;floor collision the gripper-trajectory
+    feasibility check does not catch. Part detection under self-occlusion and grasp selection, not the downstream point-based controller, are
+    the bottlenecks.</p>
+
+    <figure class="fig">
+      <img src="./static/images/fig9_failures.jpg"
+           alt="Left: the hidden handle makes the detector ground the rack as the handle. Right: a feasible initial grasp ends in a mug-floor collision."
+           loading="lazy">
+      <div class="panel-labels cols-2">
+        <span>Part detection failure</span><span>Mug&ndash;floor collision</span>
+      </div>
+      <figcaption class="fig-caption has-text-centered">
+        Left: every view finds the mug, but in none of them is the handle visible &mdash; so the detector picks the <em>rack</em> instead
+        (red box). Right: a grasp that looks fine at the start ends up dragging the mug into the floor.
+      </figcaption>
+    </figure>
+
+  </div>
+</section>
+
+<!-- ============================ REAL WORLD ============================ -->
+<section class="section" id="realworld">
+  <div class="container is-max-desktop">
+    <h2 class="section-title">Real world</h2>
+    <p class="section-lead">
+      7-DoF Franka Emika Panda, two ZED 2i depth cameras. Grasping is isolated on hardware: the mug is too wide to grasp from the outside and
+      its rim reconstructs poorly in depth, while the flat tray and the bags need a human to prop them up before any grasp is possible. The
+      operator therefore places the object in the gripper at an arbitrary grasp, and the rest of the pipeline is evaluated.
+    </p>
+  </div>
+
+  <div class="container is-max-desktop">
+    <p class="rw-lead">Two demonstrations, three target objects each. Swap the demonstration on the left, then pick what it is transferred to.</p>
+
+    <div class="rw-picker rw-demos" id="rw-demo">
+      <button class="rw-chip is-active" type="button" data-demo="sim"><span>Demo: simulated mug</span></button>
+      <button class="rw-chip" type="button" data-demo="human"><span>Demo: human hand, tray</span></button>
+    </div>
+    <div class="rw-picker rw-targets" id="rw-target">
+      <button class="rw-chip is-active" type="button" data-demo="sim" data-target="mug"><span>real mug</span></button>
+      <button class="rw-chip" type="button" data-demo="sim" data-target="brown_bag"><span>brown handbag</span></button>
+      <button class="rw-chip" type="button" data-demo="sim" data-target="green_bag"><span>green paper bag</span></button>
+      <button class="rw-chip" type="button" data-demo="human" data-target="grey_tray" hidden><span>grey tray</span></button>
+      <button class="rw-chip" type="button" data-demo="human" data-target="wooden_tray" hidden><span>wooden tray</span></button>
+      <button class="rw-chip" type="button" data-demo="human" data-target="dark_bag" hidden><span>dark bag</span></button>
+    </div>
+
+    <div class="gt-pair rw-stage">
+      <figure>
+        <video class="rw-demo-video is-active" data-demo="sim" muted loop playsinline preload="none"
+               poster="./static/videos/demo_sim_mug.jpg" data-src="./static/videos/demo_sim_mug.mp4"
+               aria-label="Simulated demonstration: a mug is hung on a rack."></video>
+        <video class="rw-demo-video" data-demo="human" muted loop playsinline preload="none" hidden
+               poster="./static/videos/demo_human_tray.jpg" data-src="./static/videos/demo_human_tray.mp4"
+               aria-label="Human-hand demonstration: a tray is placed into a dish rack."></video>
+        <figcaption>Demonstration</figcaption>
+      </figure>
+      <figure>
+        <video class="rw-target-video is-active" data-target="mug" muted loop playsinline preload="none"
+               poster="./static/videos/rw_mug.jpg" data-src="./static/videos/rw_mug.mp4"
+               aria-label="The robot hangs a real mug on the rack."></video>
+        <video class="rw-target-video" data-target="brown_bag" muted loop playsinline preload="none" hidden
+               poster="./static/videos/rw_brown_bag.jpg" data-src="./static/videos/rw_brown_bag.mp4"
+               aria-label="The robot hangs a brown handbag on the rack."></video>
+        <video class="rw-target-video" data-target="green_bag" muted loop playsinline preload="none" hidden
+               poster="./static/videos/rw_green_bag.jpg" data-src="./static/videos/rw_green_bag.mp4"
+               aria-label="The robot hangs a green paper bag on the rack."></video>
+        <video class="rw-target-video" data-target="grey_tray" muted loop playsinline preload="none" hidden
+               poster="./static/videos/rw_grey_tray.jpg" data-src="./static/videos/rw_grey_tray.mp4"
+               aria-label="The robot places a grey tray into the dish rack."></video>
+        <video class="rw-target-video" data-target="wooden_tray" muted loop playsinline preload="none" hidden
+               poster="./static/videos/rw_wooden_tray.jpg" data-src="./static/videos/rw_wooden_tray.mp4"
+               aria-label="The robot places a wooden tray into the dish rack."></video>
+        <video class="rw-target-video" data-target="dark_bag" muted loop playsinline preload="none" hidden
+               poster="./static/videos/rw_dark_bag.jpg" data-src="./static/videos/rw_dark_bag.mp4"
+               aria-label="The robot places a dark bag into the dish rack."></video>
+        <span class="rate-badge">2&times;</span>
+        <figcaption>Execution</figcaption>
+      </figure>
+    </div>
+  </div>
+
+</section>
+
+<!-- ============================ BIBTEX ============================ -->
+<section class="section" id="bibtex">
+  <div class="container is-max-desktop">
+    <h2 class="section-title">BibTeX</h2>
+    <div class="citation-box">
+<pre id="bib-text">TBA</pre>
+    </div>
+  </div>
+</section>
+
+<!-- ============================ FOOTER ============================ -->
+<footer class="footer">
+  <div class="container is-max-desktop has-text-centered">
+    <p>This website is licensed under a <a href="https://creativecommons.org/licenses/by-sa/4.0/" rel="license">Creative Commons Attribution-ShareAlike 4.0 International License</a>.
+    Built with <a href="https://bulma.io">Bulma</a>; layout inspired by the <a href="https://nerfies.github.io">Nerfies</a> template.</p>
+  </div>
+</footer>
+
+<script src="./static/js/index.js?v=1"></script>
+<script src="./static/js/stability.js?v=13"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+  /* tabbed video pickers: real-world runs, and the goal-geometry pairs */
+  function play(v) {
+    if (!v) return;
+    // Calling play() in the same tick as load() loses the race — the promise rejects
+    // "interrupted by a new load request" and nothing retries, so the panel sits on its
+    // poster. Attach the first play to loadeddata instead.
+    if (!v.dataset.loaded) {
+      v.dataset.loaded = '1';
+      v.addEventListener('loadeddata', function once() {
+        v.removeEventListener('loadeddata', once);
+        var p = v.play(); if (p && p.catch) p.catch(function () {});
+      });
+      v.src = v.getAttribute('data-src');
+      v.load();
+      return;
+    }
+    var pr = v.play(); if (pr && pr.catch) pr.catch(function () {});
+  }
+  function wirePicker(pickerId, panelSelector) {
+    var picker = document.getElementById(pickerId);
+    if (!picker) return;
+    picker.addEventListener('click', function (e) {
+      var chip = e.target.closest('.rw-chip');
+      if (!chip) return;
+      picker.querySelectorAll('.rw-chip').forEach(function (c) { c.classList.remove('is-active'); });
+      chip.classList.add('is-active');
+      document.querySelectorAll(panelSelector).forEach(function (p) {
+        p.classList.remove('is-active');
+        p.querySelectorAll('video').forEach(function (v) { v.pause(); });
+      });
+      var panel = document.getElementById(chip.dataset.panel);
+      if (!panel) return;
+      panel.classList.add('is-active');
+      panel.querySelectorAll('video').forEach(play);
+    });
+  }
+  /* real world: pick a demonstration, then one of its three target objects */
+  (function () {
+    var demos = document.getElementById('rw-demo');
+    var targets = document.getElementById('rw-target');
+    if (!demos || !targets) return;
+
+    function show(list, attr, value) {
+      list.forEach(function (el) {
+        var on = el.getAttribute(attr) === value;
+        el.hidden = !on;
+        el.classList.toggle('is-active', on);
+        if (on) play(el); else el.pause();
+      });
+    }
+    var demoVids = [].slice.call(document.querySelectorAll('.rw-demo-video'));
+    var targetVids = [].slice.call(document.querySelectorAll('.rw-target-video'));
+
+    function selectTarget(name) {
+      targets.querySelectorAll('.rw-chip').forEach(function (c) {
+        c.classList.toggle('is-active', c.dataset.target === name);
+      });
+      show(targetVids, 'data-target', name);
+    }
+
+    demos.addEventListener('click', function (e) {
+      var chip = e.target.closest('.rw-chip');
+      if (!chip) return;
+      var demo = chip.dataset.demo;
+      demos.querySelectorAll('.rw-chip').forEach(function (c) {
+        c.classList.toggle('is-active', c === chip);
+      });
+      show(demoVids, 'data-demo', demo);
+      // swap in that demonstration's targets and land on the first one
+      var first = null;
+      targets.querySelectorAll('.rw-chip').forEach(function (c) {
+        var mine = c.dataset.demo === demo;
+        c.hidden = !mine;
+        if (mine && !first) first = c;
+      });
+      if (first) selectTarget(first.dataset.target);
+    });
+
+    targets.addEventListener('click', function (e) {
+      var chip = e.target.closest('.rw-chip');
+      if (chip) selectTarget(chip.dataset.target);
+    });
+  })();
+
+  wirePicker('gt-picker', '#end2end .gt-goal-panel');
+  wirePicker('e2e-picker', '#end2end .gt-e2e-panel');
+
+  /* Whichever pair is showing plays while it is on screen and pauses when it leaves.
+     Driven by getBoundingClientRect on scroll rather than IntersectionObserver: IO
+     gives no callback at all in a backgrounded document, which made this silently
+     dead and left every panel sitting on its poster until a chip was clicked. */
+  var watchers = [];
+  function autoplayWhenVisible(hostSelector, activeSelector, allSelector) {
+    var host = document.querySelector(hostSelector);
+    if (host) watchers.push({ host: host, active: activeSelector, all: allSelector, on: null });
+  }
+  function syncAutoplay() {
+    var vh = window.innerHeight || document.documentElement.clientHeight;
+    watchers.forEach(function (w) {
+      var r = w.host.getBoundingClientRect();
+      // plain overlap with the viewport.  An earlier version asked the element to
+      // reach 15% down the screen, which a short pair near the top never does.
+      var on = r.bottom > 0 && r.top < vh;
+      if (on === w.on) return;
+      w.on = on;
+      if (on) document.querySelectorAll(w.active).forEach(play);
+      else document.querySelectorAll(w.all).forEach(function (v) { v.pause(); });
+    });
+  }
+  var queued = null;
+  function queueSync() {
+    if (queued) return;
+    queued = setTimeout(function () { queued = null; syncAutoplay(); }, 100);
+  }
+  window.addEventListener('scroll', queueSync, { passive: true });
+  window.addEventListener('resize', queueSync);
+  window.__syncAutoplay = syncAutoplay;   // so a switched panel can re-arm
+
+  autoplayWhenVisible('.teaser-row', '.teaser-row video', '.teaser-row video');
+  autoplayWhenVisible('#end2end .gt-e2e-panel',
+                      '#end2end .gt-e2e-panel.is-active video',
+                      '#end2end .gt-e2e-panel video');
+  autoplayWhenVisible('#end2end .gt-goal-panel',
+                      '#end2end .gt-goal-panel.is-active video',
+                      '#end2end .gt-goal-panel video');
+  autoplayWhenVisible('.rw-stage',
+                      '.rw-stage video:not([hidden])',
+                      '.rw-stage video');
+  syncAutoplay();
+
+  /* math */
+  if (window.renderMathInElement) {
+    renderMathInElement(document.body, {
+      delimiters: [{ left: '$$', right: '$$', display: true }],
+      throwOnError: false
+    });
+    document.querySelectorAll('span.katex-inline').forEach(function (el) {
+      try { katex.render(el.textContent, el, { throwOnError: false }); } catch (err) {}
+    });
+  }
+});
+</script>
+</body>
+</html>
